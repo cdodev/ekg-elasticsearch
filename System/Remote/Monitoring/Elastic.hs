@@ -26,7 +26,7 @@ module System.Remote.Monitoring.Elastic
 
 import           Control.Concurrent                   (ThreadId, threadDelay)
 import           Control.Lens
-import           Control.Monad                        (void)
+import           Control.Monad                        (void, forever)
 import           Data.Int                             (Int64)
 import           Data.Monoid                          ((<>))
 import qualified Data.Text                            as T
@@ -126,7 +126,7 @@ forkElastic opts store = Elastic <$> forkIO (loop store opts)
 loop :: Metrics.Store   -- ^ Metric store
      -> ElasticOptions   -- ^ Options
      -> IO ()
-loop store opts = do
+loop store opts = forever $ do
     start <- time
     flushSample store opts
     end <- time

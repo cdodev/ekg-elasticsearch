@@ -25,7 +25,6 @@ import           Data.Aeson                  ((.=))
 import qualified Data.Aeson                  as A
 import qualified Data.Aeson.Types            as A
 import qualified Data.ByteString.Lazy        as LBS
-import qualified Data.ByteString.Lazy.Char8  as C8
 import qualified Data.HashMap.Strict         as M
 import           Data.Int                    (Int64)
 import           Data.Monoid                 ((<>))
@@ -76,7 +75,7 @@ newtype CreateBulk = CreateBulk { _index :: Text }
 
 instance A.ToJSON CreateBulk where
   toJSON (CreateBulk idx) = A.object
-    [ "create" .= A.object [ "_index" .= idx
+    [ "index" .= A.object [ "_index" .= idx
                            , "_type" .= ("metricsets" :: Text)
                            ]
     ]
@@ -113,9 +112,7 @@ instance A.ToJSON BeatEvent where
 newtype BulkRequest = BulkRequest [(CreateBulk, BeatEvent)]
 
 instance Postable BulkRequest where
-  postPayload (BulkRequest docs) req = do
-    putStrLn $ C8.unpack body
-    return $ req { requestBody = RequestBodyLBS body}
+  postPayload (BulkRequest docs) req = return $ req { requestBody = RequestBodyLBS body}
     where
       body = (<> "\n") . LBS.intercalate "\n" . concatMap encodeBoth $ docs
       encodeBoth (cb, be) = [A.encode cb, A.encode be]
