@@ -2,10 +2,7 @@
 
 This library lets you send metrics gathered by the ekg family of
 packages (e.g. ekg-core and ekg) to
-[elastic](https://github.com/etsy/elastic/). While elastic fulfills a
-very similar role to ekg, it supports many more backends/graphing
-systems (e.g. Graphite). By sending your metrics to elastic, you can
-have your ekg metrics appear in these systems.
+[elastic](https://www.elastic.co). 
 
 # Getting started
 
@@ -38,13 +35,13 @@ metrics to elastic using UDP.
 # Get involved!
 
 Please report bugs via the
-[GitHub issue tracker](https://github.com/tibbe/ekg-elastic/issues).
+[GitHub issue tracker](https://github.com/cdodev/ekg-elastic/issues).
 
-Master [git repository](https://github.com/tibbe/ekg-elastic):
+Master [git repository](https://github.com/cdodev/ekg-elastic):
 
-    git clone https://github.com/tibbe/ekg-elastic.git
+    git clone https://github.com/cdodev/ekg-elastic.git
 
 # Authors
 
-This library is written and maintained by Johan Tibell,
-<johan.tibell@gmail.com>.
+This library is written and maintained by Ben Ford,
+<ben@perurbis.com>.
