@@ -1,8 +1,8 @@
 # ekg-elastic: elastic backend for ekg
 
-This library lets you send metrics gathered by the ekg family of
-packages (e.g. ekg-core and ekg) to
-[elastic](https://www.elastic.co). 
+This library lets you send metrics gathered by the ekg family of packages (e.g.
+ekg-core and ekg) to [elastic](https://www.elastic.co). The metrics sent are in
+the same format as [beats](https://www.elastic.co/products/beats) metrics.
 
 # Getting started
 
