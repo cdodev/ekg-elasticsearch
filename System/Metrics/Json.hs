@@ -3,17 +3,22 @@
 {-# LANGUAGE TemplateHaskell   #-}
 
 -- | Encoding of ekg metrics as metricbeats compliant JSON. This module is
--- originally from egk-json with some tweaks
+-- originally from egk-json with some tweaks for metricbeats
 module System.Metrics.Json
     ( -- * Converting metrics to JSON values
-      sampleToJson
-    , valueToJson
+      -- ** Types
+      BeatEvent(..)
     , Beat(..)
-    , BeatEvent(..)
-    , beat, timestamp, beatTags, ekg, rtt
-    , sampleBeatEvents
     , BulkRequest(..)
     , CreateBulk(..)
+
+      -- ** Conversion functions
+    , sampleToJson
+    , valueToJson
+    , sampleBeatEvents
+
+      -- ** Generated Lenses
+    , beat, timestamp, beatTags, ekg, rtt
 
       -- ** Newtype wrappers with instances
     , Sample(..)
@@ -41,36 +46,25 @@ import qualified System.Metrics.Distribution as Distribution
 
 --------------------------------------------------------------------------------
 -- * Converting metrics to JSON values
-
-
--- | Encode metrics as nested JSON objects. Each "." in the metric
--- name introduces a new level of nesting. For example, the metrics
--- @[("foo.bar", 10), ("foo.baz", "label")]@ are encoded as
 --
--- > {
--- >   "foo": {
--- >     "bar": {
--- >       "type:", "c",
--- >       "val": 10
--- >     },
--- >     "baz": {
--- >       "type": "l",
--- >       "val": "label"
--- >     }
--- >   }
--- > }
---
+-- egk-elastic transfers all the metrics in the 'Metrics.Store' as a single
+-- 'BulkRequest'. Each individual metric is one document in the bulk request and
+-- the operation is index. The index is controlled by the 'CreateBulk'. See
+-- <https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
+-- Elastic Bulk Request Documents> for more on the format.
 
 --------------------------------------------------------------------------------
+-- | The @beat@ key of the 'BeatEvent'
 data Beat = Beat {
-    hostname :: !Text
-  , name     :: !Text
-  , version  :: !Text
+    hostname :: !Text -- ^ Hostname of metric source
+  , name     :: !Text -- ^ Name of the beat (hardcoded to "ekg" at the moment)
+  , version  :: !Text -- ^ Beat version (hardcoded to @0.1@ at the moment)
   } deriving (Generic)
 
 instance A.ToJSON Beat
 
 --------------------------------------------------------------------------------
+-- | Newtype around the index to send events to
 newtype CreateBulk = CreateBulk { _index :: Text }
 
 instance A.ToJSON CreateBulk where
@@ -81,12 +75,33 @@ instance A.ToJSON CreateBulk where
     ]
 
 --------------------------------------------------------------------------------
+-- | Encode a 'Metrics.Sample' as a
+-- <https://www.elastic.co/guide/en/beats/metricbeat/5.3/metricbeat-event-structure.html metricbeat event>
+--
+-- For reference this is the event structure
+--
+-- > {
+-- >   "@timestamp": "2016-06-22T22:05:53.291Z",
+-- >   "beat": {
+-- >     "hostname": "host.example.com",
+-- >     "name": "host.example.com"
+-- >   },
+-- >   "metricset": {
+-- >     "module": "system",
+-- >     "name": "process",
+-- >     "rtt": 7419
+-- >   },
+-- >   .
+-- >   .
+-- >   .
+-- >   "type": "metricsets"
+-- > }
 data BeatEvent = BeatEvent {
-    _beat      :: !Beat
-  , _timestamp :: !POSIXTime
-  , _beatTags  :: ![Text]
-  , _rtt       :: !Int
-  , _ekg       :: !Metrics.Sample
+    _beat      :: !Beat           -- ^ The 'Beat'
+  , _timestamp :: !POSIXTime      -- ^ Timestamp of this event
+  , _beatTags  :: ![Text]         -- ^ Extra tags to add to the event
+  , _rtt       :: !Int            -- ^ Round trip time to generate the event
+  , _ekg       :: !Metrics.Sample -- ^ The snapshot of the 'Metrics.Store'
   }
 
 makeLenses ''BeatEvent
@@ -109,6 +124,7 @@ instance A.ToJSON BeatEvent where
 
 
 --------------------------------------------------------------------------------
+-- | Make a bulk submission to elastic
 newtype BulkRequest = BulkRequest [(CreateBulk, BeatEvent)]
 
 instance Postable BulkRequest where
@@ -118,6 +134,7 @@ instance Postable BulkRequest where
       encodeBoth (cb, be) = [A.encode cb, A.encode be]
 
 --------------------------------------------------------------------------------
+-- | Generate a 'BeatEvent' for each metric in the 'Metrics.Store'
 sampleBeatEvents :: Metrics.Store -> [Text] -> IO [BeatEvent]
 sampleBeatEvents store extraTags = do
   now <- getPOSIXTime
@@ -130,6 +147,23 @@ sampleBeatEvents store extraTags = do
   return $ M.foldlWithKey' mkBeatEvt [] sample
 
 --------------------------------------------------------------------------------
+-- | Generate the nested json for a 'Mertics.Sample'
+--
+-- Each "." in the metric name introduces a new level of nesting. For example,
+-- the metrics @[("foo.bar", 10), ("foo.baz", "label")]@ are encoded as
+--
+-- > {
+-- >   "foo": {
+-- >     "bar": {
+-- >       "type:", "c",
+-- >       "val": 10
+-- >     },
+-- >     "baz": {
+-- >       "type": "l",
+-- >       "val": "label"
+-- >     }
+-- >   }
+-- > }
 sampleToJson :: Metrics.Sample -> A.Value
 sampleToJson metrics =
     buildOne metrics A.emptyObject
@@ -163,13 +197,10 @@ typeMismatch expected actual =
         A.Bool _   -> "Boolean"
         A.Null     -> "Null"
 
--- | Encodes a single metric as a JSON object. Example:
+-- | Encodes a single 'Metrics.Value' as a JSON object. Examples:
 --
--- > {
--- >   "type": "c",
--- >   "val": 89460
--- > }
---
+-- > { "count": 89460 }
+-- > { "gauge": 300 }
 valueToJson :: Metrics.Value -> A.Value
 valueToJson (Metrics.Counter n)      = scalarToJson n CounterType
 valueToJson (Metrics.Gauge n)        = scalarToJson n GaugeType

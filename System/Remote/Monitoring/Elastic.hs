@@ -20,36 +20,31 @@ module System.Remote.Monitoring.Elastic
       Elastic
     , elasticThreadId
     , forkElastic
+      -- * Elastic options
     , ElasticOptions(..)
     , defaultElasticOptions
     ) where
 
-import           Control.Concurrent                   (ThreadId, threadDelay)
+import           Control.Concurrent    (ThreadId, threadDelay)
+import           Control.Concurrent    (forkIO)
 import           Control.Lens
-import           Control.Monad                        (void, forever)
-import           Data.Int                             (Int64)
-import           Data.Monoid                          ((<>))
-import qualified Data.Text                            as T
-
-
+import           Control.Monad         (forever, void)
+import           Data.Int              (Int64)
+import           Data.Monoid           ((<>))
+import qualified Data.Text             as T
 import           Data.Text.Lens
-import           Data.Time.Calendar (toGregorian)
-import           Data.Time.Clock (getCurrentTime, utctDay)
-import           Data.Time.Clock.POSIX                (getPOSIXTime)
-import           Network.Wreq                         as Wreq
+import           Data.Time.Calendar    (toGregorian)
+import           Data.Time.Clock       (getCurrentTime, utctDay)
+import           Data.Time.Clock.POSIX (getPOSIXTime)
+import           Network.Wreq          as Wreq
+import qualified System.Metrics        as Metrics
 
-import qualified System.Metrics                       as Metrics
+import           System.Metrics.Json
 
-import           Control.Concurrent                   (forkIO)
-
-
-import System.Metrics.Json
-
+--------------------------------------------------------------------------------
 -- | A handle that can be used to control the elastic sync thread.
 -- Created by 'forkElastic'.
-newtype Elastic = Elastic
-    { threadId :: ThreadId
-    }
+newtype Elastic = Elastic { threadId :: ThreadId }
 
 -- | The thread ID of the elastic sync thread. You can stop the sync by
 -- killing this thread (i.e. by throwing it an asynchronous
@@ -57,6 +52,7 @@ newtype Elastic = Elastic
 elasticThreadId :: Elastic -> ThreadId
 elasticThreadId = threadId
 
+--------------------------------------------------------------------------------
 -- | Options to control how to connect to the elastic server and how
 -- often to flush metrics. The flush interval should be shorter than
 -- the flush interval elastic itself uses to flush data to its
@@ -69,10 +65,10 @@ data ElasticOptions = ElasticOptions
     , _port          :: !Int
 
       -- | The elastic index to insert into
-    , _indexBase  :: !T.Text
+    , _indexBase     :: !T.Text
 
-      -- | Prepend "-YYYY.MM.DD" onto index
-    , _indexByDate :: !Bool
+      -- | Append "-YYYY.MM.DD" onto index?
+    , _indexByDate   :: !Bool
 
       -- | Data push interval, in ms.
     , _flushInterval :: !Int
@@ -100,6 +96,10 @@ makeClassy ''ElasticOptions
 --
 -- * @port@ = @8125@
 --
+-- * @indexBase@ = @metricbeats@
+--
+-- * @indexByDate@ = @True@
+--
 -- * @flushInterval@ = @1000@
 --
 -- * @debug@ = @False@
@@ -116,8 +116,8 @@ defaultElasticOptions = ElasticOptions
     , _tags          = []
     }
 
--- | Create a thread that periodically flushes the metrics in the
--- store to elastic.
+--------------------------------------------------------------------------------
+-- | Create a thread that flushes the metrics in the store to elastic.
 forkElastic :: ElasticOptions  -- ^ Options
            -> Metrics.Store  -- ^ Metric store
            -> IO Elastic      -- ^ Elastic sync handle
@@ -139,9 +139,15 @@ time = (round . (* 1000000.0) . toDouble) `fmap` getPOSIXTime
   where toDouble = realToFrac :: Real a => a -> Double
 
 
+--------------------------------------------------------------------------------
+-- | Construct the correct URL to send metrics too from '_host' and '_port'
 elasticURL :: ElasticOptions -> String
 elasticURL eo = "http://" ++ (eo ^. host.unpacked) ++ ":" ++ show (eo ^. port) ++ "/_bulk"
 
+-- | Construct the index to send to
+--
+-- if '_indexByDate' if @True@ this will be '_indexBase'-YYYY.MM.DD otherwise it
+-- will just be '_indexBase'
 mkIndex :: ElasticOptions -> IO CreateBulk
 mkIndex eo =
   CreateBulk <$> if eo ^. indexByDate
@@ -155,27 +161,10 @@ mkIndex eo =
     toT :: Show a => a -> T.Text
     toT = T.pack . show
 
+--------------------------------------------------------------------------------
+-- | Create a 'BulkRequest' and send it elastic
 flushSample :: Metrics.Store -> ElasticOptions -> IO ()
 flushSample store eo = do
   createBulk <- mkIndex eo
   bulkEvts <- sampleBeatEvents store (eo ^. tags)
   void $ Wreq.post (elasticURL eo) $ BulkRequest $ (createBulk,) <$> bulkEvts
-  --   forM_ (M.toList sample) $ \ (name, val) ->
-  --       let fullName = dottedPrefix <> name <> dottedSuffix
-  --       in  flushMetric fullName val
-  -- where
-  --   flushMetric name (Metrics.Counter n)      = send "|c" name (show n)
-  --   flushMetric name (Metrics.Gauge n)        = send "|g" name (show n)
-  --   flushMetric name (Metrics.Distribution d) = sendDistribution name d
-  --   flushMetric _    (Metrics.Label _)        = return ()
-
-  --   isDebug = debug opts
-  --   dottedPrefix = if T.null (prefix opts) then "" else prefix opts <> "."
-  --   dottedSuffix = if T.null (suffix opts) then "" else "." <> polatesuffix opts
-  --   send ty name val = do
-  --       let !msg = B8.concat [T.encodeUtf8 name, ":", B8.pack val, ty]
-  --       when isDebug $ B8.h pkgs.buildEnvPutStrLn stderr $ B8.concat [intero "DEBUG: ", msg]
-  --       Socket.sendAll socket msg `catch` \ (e intero:: IOException) -> do
-  --           T.hPutStrLn stderr $ "ERROR: Couldn't send message: " <>
-  --               T.pack (show e)
-  --           return ()
