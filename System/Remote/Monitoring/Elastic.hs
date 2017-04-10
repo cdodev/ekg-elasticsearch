@@ -25,16 +25,15 @@ module System.Remote.Monitoring.Elastic
     , defaultElasticOptions
     ) where
 
-import           Control.Concurrent    (ThreadId, threadDelay)
-import           Control.Concurrent    (forkIO)
+import           Control.Concurrent    (ThreadId, threadDelay, forkIO)
 import           Control.Lens
 import           Control.Monad         (forever, void)
 import           Data.Int              (Int64)
 import           Data.Monoid           ((<>))
 import qualified Data.Text             as T
 import           Data.Text.Lens
-import           Data.Time.Calendar    (toGregorian)
-import           Data.Time.Clock       (getCurrentTime, utctDay)
+import Data.Time.Format (defaultTimeLocale, formatTime)
+import           Data.Time.Clock       (getCurrentTime)
 import           Data.Time.Clock.POSIX (getPOSIXTime)
 import           Network.Wreq          as Wreq
 import qualified System.Metrics        as Metrics
@@ -107,7 +106,7 @@ defaultElasticOptions :: ElasticOptions
 defaultElasticOptions = ElasticOptions
     { _host          = "127.0.0.1"
     , _port          = 9200
-    , _indexBase     = "metricbeats"
+    , _indexBase     = "metricbeat"
     , _indexByDate   = True
     , _flushInterval = 1000
     , _debug         = False
@@ -155,11 +154,8 @@ mkIndex eo =
     else return (eo ^. indexBase)
   where
     appendDate base = do
-      day <- toGregorian . utctDay <$> getCurrentTime
-      return $ base <> "-" <> dateStr day
-    dateStr (y, m, d) = T.intercalate "." [toT y, toT m, toT d]
-    toT :: Show a => a -> T.Text
-    toT = T.pack . show
+      day <- formatTime defaultTimeLocale "%Y.%m.%d" <$> getCurrentTime
+      return $ base <> "-" <> (day ^. packed)
 
 --------------------------------------------------------------------------------
 -- | Create a 'BulkRequest' and send it elastic
