@@ -15,7 +15,6 @@ module System.Metrics.Json
       -- ** Conversion functions
     , sampleToJson
     , valueToJson
-    , sampleBeatEvents
 
       -- ** Generated Lenses
     , beat, timestamp, beatTags, ekg, rtt
@@ -35,9 +34,8 @@ import           Data.Int                    (Int64)
 import           Data.Monoid                 ((<>))
 import           Data.Text                   (Text)
 import qualified Data.Text                   as T
-import           Data.Time.Clock.POSIX       (POSIXTime, getPOSIXTime)
+import           Data.Time.Clock.POSIX       (POSIXTime)
 import           GHC.Generics                (Generic)
-import           Network.HostName            (getHostName)
 
 import           Network.HTTP.Client         (RequestBody (..), requestBody)
 import           Network.Wreq.Types
@@ -132,19 +130,6 @@ instance Postable BulkRequest where
     where
       body = (<> "\n") . LBS.intercalate "\n" . concatMap encodeBoth $ docs
       encodeBoth (cb, be) = [A.encode cb, A.encode be]
-
---------------------------------------------------------------------------------
--- | Generate a 'BeatEvent' for each metric in the 'Metrics.Store'
-sampleBeatEvents :: Metrics.Store -> [Text] -> IO [BeatEvent]
-sampleBeatEvents store extraTags = do
-  now <- getPOSIXTime
-  sample <- Metrics.sampleAll store
-  host <- T.pack <$> getHostName
-  finish <- getPOSIXTime
-  let took = floor $ (finish - now) * 1000
-      theBeat = Beat host "ekg" "0.1"
-      mkBeatEvt evts k v = BeatEvent theBeat now extraTags took (M.singleton k v) : evts
-  return $ M.foldlWithKey' mkBeatEvt [] sample
 
 --------------------------------------------------------------------------------
 -- | Generate the nested json for a 'Mertics.Sample'

@@ -25,16 +25,19 @@ module System.Remote.Monitoring.Elastic
     , defaultElasticOptions
     ) where
 
-import           Control.Concurrent    (ThreadId, threadDelay, forkIO)
+import           Control.Concurrent    (ThreadId, forkIO, threadDelay)
 import           Control.Lens
 import           Control.Monad         (forever, void)
+import qualified Data.HashMap.Strict   as M
 import           Data.Int              (Int64)
 import           Data.Monoid           ((<>))
+import           Data.Text             (Text)
 import qualified Data.Text             as T
 import           Data.Text.Lens
-import Data.Time.Format (defaultTimeLocale, formatTime)
 import           Data.Time.Clock       (getCurrentTime)
 import           Data.Time.Clock.POSIX (getPOSIXTime)
+import           Data.Time.Format      (defaultTimeLocale, formatTime)
+import           Network.HostName      (getHostName)
 import           Network.Wreq          as Wreq
 import qualified System.Metrics        as Metrics
 
@@ -58,17 +61,18 @@ elasticThreadId = threadId
 -- backends.
 data ElasticOptions = ElasticOptions
     { -- | Server hostname or IP address
-      _host          :: !T.Text
+      _host          :: !Text
 
       -- | Server port
     , _port          :: !Int
 
       -- | The elastic index to insert into
-    , _indexBase     :: !T.Text
+    , _indexBase     :: !Text
 
       -- | Append "-YYYY.MM.DD" onto index?
     , _indexByDate   :: !Bool
 
+    , _beatName      :: !Text
       -- | Data push interval, in ms.
     , _flushInterval :: !Int
 
@@ -76,15 +80,15 @@ data ElasticOptions = ElasticOptions
     , _debug         :: !Bool
 
       -- | Prefix to add to all metric names.
-    , _prefix        :: !T.Text
+    , _prefix        :: !Text
 
       -- | Suffix to add to all metric names. This is particularly
       -- useful for sending per host stats by settings this value to:
       -- @takeWhile (/= \'.\') \<$\> getHostName@, using @getHostName@
       -- from the @Network.BSD@ module in the network package.
-    , _suffix        :: !T.Text
+    , _suffix        :: !Text
       -- | Extra tags to add to events
-    , _tags          :: ![T.Text]
+    , _tags          :: ![Text]
     }
 
 makeClassy ''ElasticOptions
@@ -108,6 +112,7 @@ defaultElasticOptions = ElasticOptions
     , _port          = 9200
     , _indexBase     = "metricbeat"
     , _indexByDate   = True
+    , _beatName      = "ekg"
     , _flushInterval = 1000
     , _debug         = False
     , _prefix        = ""
@@ -158,9 +163,22 @@ mkIndex eo =
       return $ base <> "-" <> (day ^. packed)
 
 --------------------------------------------------------------------------------
+-- | Generate a 'BeatEvent' for each metric in the 'Metrics.Store'
+sampleBeatEvents :: Metrics.Store -> ElasticOptions -> IO [BeatEvent]
+sampleBeatEvents store eo = do
+  now <- getPOSIXTime
+  sample <- Metrics.sampleAll store
+  hostName <- T.pack <$> getHostName
+  finish <- getPOSIXTime
+  let took = floor $ (finish - now) * 1000
+      theBeat = Beat hostName (eo ^. beatName) "0.1"
+      mkBeatEvt evts k v = BeatEvent theBeat now(eo ^. tags)  took (M.singleton k v) : evts
+  return $ M.foldlWithKey' mkBeatEvt [] sample
+
+--------------------------------------------------------------------------------
 -- | Create a 'BulkRequest' and send it elastic
 flushSample :: Metrics.Store -> ElasticOptions -> IO ()
 flushSample store eo = do
   createBulk <- mkIndex eo
-  bulkEvts <- sampleBeatEvents store (eo ^. tags)
+  bulkEvts <- sampleBeatEvents store eo
   void $ Wreq.post (elasticURL eo) $ BulkRequest $ (createBulk,) <$> bulkEvts
