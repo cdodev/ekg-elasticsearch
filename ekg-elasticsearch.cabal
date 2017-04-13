@@ -1,10 +1,10 @@
-name:                ekg-elastic
+name:                ekg-elasticsearch
 version:             0.2.2.0
-synopsis:            Push metrics to elastic
+synopsis:            Push metrics to elasticsearch
 description:
-  This library lets you push system metrics to a elastic server.
-homepage:            https://github.com/cdodev/ekg-elastic
-bug-reports:         https://github.com/cdodev/ekg-elastic/issues
+  This library lets you push system metrics to a elasticsearch server.
+homepage:            https://github.com/cdodev/ekg-elasticsearch
+bug-reports:         https://github.com/cdodev/ekg-elasticsearch/issues
 license:             BSD3
 license-file:        LICENSE
 author:              Ben Ford
@@ -16,7 +16,7 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:     
-    System.Remote.Monitoring.Elastic
+    System.Remote.Monitoring.ElasticSearch
     System.Metrics.Json
 
   build-depends: base >= 4.5 && < 4.10

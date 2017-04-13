@@ -49,7 +49,7 @@ import qualified System.Metrics.Distribution as Distribution
 -- 'BulkRequest'. Each individual metric is one document in the bulk request and
 -- the operation is index. The index is controlled by the 'CreateBulk'. See
 -- <https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
--- Elastic Bulk Request Documents> for more on the format.
+-- ElasticSearch Bulk Request Documents> for more on the format.
 
 --------------------------------------------------------------------------------
 -- | The @beat@ key of the 'BeatEvent'
@@ -122,7 +122,7 @@ instance A.ToJSON BeatEvent where
 
 
 --------------------------------------------------------------------------------
--- | Make a bulk submission to elastic
+-- | Make a bulk submission to elasticsearch
 newtype BulkRequest = BulkRequest [(CreateBulk, BeatEvent)]
 
 instance Postable BulkRequest where

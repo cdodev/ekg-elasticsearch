@@ -1,36 +1,36 @@
-# ekg-elastic: elastic backend for ekg
+# ekg-elastic: elasticsearch backend for ekg
 
 This library lets you send metrics gathered by the ekg family of packages (e.g.
-ekg-core and ekg) to [elastic](https://www.elastic.co). The metrics sent are in
-the same format as [beats](https://www.elastic.co/products/beats) metrics.
+ekg-core and ekg) to [elasticsearch](https://www.elasticsearch.co). The metrics sent are in
+the same format as [beats](https://www.elasticsearch.co/products/beats) metrics.
 
 # Getting started
 
-Exporting metrics to elastic is simple. Either create an empty metric
+Exporting metrics to elasticsearch is simple. Either create an empty metric
 store and register some metrics
 
     import System.Metrics
-    import System.Remote.Monitoring.Elastic
+    import System.Remote.Monitoring.ElasticSearch
 
     main = do
         store <- newStore
         registerGcMetrics store
-        forkElastic defaultElasticOptions store
+        forkElasticSearch defaultESOptions store
         ...
 
 or use the default metrics and metric store provided by the ekg
 package
 
     import System.Remote.Monitoring
-    import System.Remote.Monitoring.Elastic
+    import System.Remote.Monitoring.ElasticSearch
 
     main = do
         handle <- forkServer "localhost" 8000
-        forkElastic defaultElasticOptions (serverMetricStore handle)
+        forkElasticSearch defaultESOptions (serverMetricStore handle)
         ...
 
-`forkElastic` starts a new thread the will periodically send your
-metrics to elastic using UDP.
+`forkElasticSearch` starts a new thread the will periodically send your
+metrics to elasticsearch using a bulk request.
 
 # Get involved!
 

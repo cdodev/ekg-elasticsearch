@@ -9,7 +9,7 @@ import Control.Monad (forever)
 import Data.List (foldl')
 import System.Metrics
 import qualified System.Metrics.Counter as Counter
-import System.Remote.Monitoring.Elastic
+import System.Remote.Monitoring.ElasticSearch
 
 -- 'sum' is using a non-strict lazy fold and will blow the stack.
 sum' :: Num a => [a] -> a
@@ -23,7 +23,7 @@ main = do
     store <- newStore
     registerGcMetrics store
     iters <- createCounter "iterations" store
-    _ <- forkElastic defaultElasticOptions store
+    _ <- forkElasticSearch defaultESOptions store
     let loop :: Int -> IO ()
         loop n = forever $ do
           let n' = fromIntegral n :: Double

@@ -9,7 +9,7 @@ import Data.List (foldl')
 import System.Metrics
 import qualified System.Metrics.Counter as Counter
 import System.Remote.Monitoring
-import System.Remote.Monitoring.Elastic
+import System.Remote.Monitoring.ElasticSearch
 
 -- 'sum' is using a non-strict lazy fold and will blow the stack.
 sum' :: Num a => [a] -> a
@@ -22,7 +22,7 @@ main :: IO ()
 main = do
     handle <- forkServer "localhost" 8000
     iters <- getCounter "iterations" handle
-    forkElastic defaultElasticOptions (serverMetricStore handle)
+    forkElasticSearch defaultESOptions (serverMetricStore handle)
     let loop n = do
             evaluate $ mean [1..n]
             Counter.inc iters

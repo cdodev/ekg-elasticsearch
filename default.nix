@@ -1,15 +1,15 @@
-{ mkDerivation, aeson, base, bytestring, ekg-core, hostname, lens
-, stdenv, text, time, unordered-containers, wreq
+{ mkDerivation, aeson, base, bytestring, ekg-core, hostname
+, http-client, lens, stdenv, text, time, unordered-containers, wreq
 }:
 mkDerivation {
-  pname = "ekg-elastic";
-  version = "0.2.1.0";
+  pname = "ekg-elasticsearch";
+  version = "0.2.2.0";
   src = ./.;
   libraryHaskellDepends = [
-    aeson base bytestring ekg-core hostname lens text time
+    aeson base bytestring ekg-core hostname http-client lens text time
     unordered-containers wreq
   ];
-  homepage = "https://github.com/cdodev/ekg-elastic";
-  description = "Push metrics to elastic";
+  homepage = "https://github.com/cdodev/ekg-elasticsearch";
+  description = "Push metrics to elasticsearch";
   license = stdenv.lib.licenses.bsd3;
 }

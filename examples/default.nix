@@ -1,10 +1,10 @@
-{ mkDerivation, base, ekg-core, ekg-elastic, stdenv }:
+{ mkDerivation, base, ekg-core, ekg-elasticsearch, stdenv }:
 mkDerivation {
-  pname = "ekg-elastic-examples";
+  pname = "ekg-elasticsearch-examples";
   version = "0.1.0.0";
   src = ./.;
   isLibrary = false;
   isExecutable = true;
-  executableHaskellDepends = [ base ekg-core ekg-elastic ];
+  executableHaskellDepends = [ base ekg-core ekg-elasticsearch ];
   license = stdenv.lib.licenses.bsd3;
 }

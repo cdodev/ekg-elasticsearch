@@ -4,25 +4,25 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell     #-}
 {-# LANGUAGE TupleSections       #-}
--- | This module lets you periodically flush metrics to a elastic
--- backend. Example usage:
+-- | This module lets you periodically flush metrics to elasticsearch. Example
+-- usage:
 --
 -- > main = do
 -- >     store <- newStore
--- >     forkElastic defaultElasticOptions store
+-- >     forkElasticSearch defaultESOptions store
 --
 -- You probably want to include some of the predefined metrics defined
 -- in the ekg-core package, by calling e.g. the 'registerGcStats'
 -- function defined in that package.
-module System.Remote.Monitoring.Elastic
+module System.Remote.Monitoring.ElasticSearch
     (
-      -- * The elastic syncer
-      Elastic
-    , elasticThreadId
-    , forkElastic
-      -- * Elastic options
-    , ElasticOptions(..)
-    , defaultElasticOptions
+      -- * The elasticsearch syncer
+      ElasticSearch
+    , elasticSearchThreadId
+    , forkElasticSearch
+      -- * ElasticSearch options
+    , ESOptions(..)
+    , defaultESOptions
     ) where
 
 import           Control.Concurrent    (ThreadId, forkIO, threadDelay)
@@ -44,35 +44,37 @@ import qualified System.Metrics        as Metrics
 import           System.Metrics.Json
 
 --------------------------------------------------------------------------------
--- | A handle that can be used to control the elastic sync thread.
--- Created by 'forkElastic'.
-newtype Elastic = Elastic { threadId :: ThreadId }
+-- | A handle that can be used to control the elasticsearch sync thread.
+-- Created by 'forkElasticSearch'.
+newtype ElasticSearch = ElasticSearch { threadId :: ThreadId }
 
--- | The thread ID of the elastic sync thread. You can stop the sync by
+-- | The thread ID of the elasticsearch sync thread. You can stop the sync by
 -- killing this thread (i.e. by throwing it an asynchronous
 -- exception.)
-elasticThreadId :: Elastic -> ThreadId
-elasticThreadId = threadId
+elasticSearchThreadId :: ElasticSearch -> ThreadId
+elasticSearchThreadId = threadId
 
 --------------------------------------------------------------------------------
--- | Options to control how to connect to the elastic server and how
+-- | Options to control how to connect to the elasticsearch server and how
 -- often to flush metrics. The flush interval should be shorter than
--- the flush interval elastic itself uses to flush data to its
+-- the flush interval elasticsearch itself uses to flush data to its
 -- backends.
-data ElasticOptions = ElasticOptions
+data ESOptions = ESOptions
     { -- | Server hostname or IP address
       _host          :: !Text
 
       -- | Server port
     , _port          :: !Int
 
-      -- | The elastic index to insert into
+      -- | The elasticsearch index to insert into
     , _indexBase     :: !Text
 
       -- | Append "-YYYY.MM.DD" onto index?
     , _indexByDate   :: !Bool
 
+      -- | What to put in the @beat.name@ field
     , _beatName      :: !Text
+
       -- | Data push interval, in ms.
     , _flushInterval :: !Int
 
@@ -91,7 +93,7 @@ data ElasticOptions = ElasticOptions
     , _tags          :: ![Text]
     }
 
-makeClassy ''ElasticOptions
+makeClassy ''ESOptions
 
 -- | Defaults:
 --
@@ -103,11 +105,13 @@ makeClassy ''ElasticOptions
 --
 -- * @indexByDate@ = @True@
 --
+-- * @beatName@ = @\"ekg\"@
+--
 -- * @flushInterval@ = @1000@
 --
 -- * @debug@ = @False@
-defaultElasticOptions :: ElasticOptions
-defaultElasticOptions = ElasticOptions
+defaultESOptions :: ESOptions
+defaultESOptions = ESOptions
     { _host          = "127.0.0.1"
     , _port          = 9200
     , _indexBase     = "metricbeat"
@@ -121,14 +125,14 @@ defaultElasticOptions = ElasticOptions
     }
 
 --------------------------------------------------------------------------------
--- | Create a thread that flushes the metrics in the store to elastic.
-forkElastic :: ElasticOptions  -- ^ Options
-           -> Metrics.Store  -- ^ Metric store
-           -> IO Elastic      -- ^ Elastic sync handle
-forkElastic opts store = Elastic <$> forkIO (loop store opts)
+-- | Create a thread that flushes the metrics in the store to elasticsearch.
+forkElasticSearch :: ESOptions -- ^ Options
+           -> Metrics.Store    -- ^ Metric store
+           -> IO ElasticSearch -- ^ ElasticSearch sync handle
+forkElasticSearch opts store = ElasticSearch <$> forkIO (loop store opts)
 
 loop :: Metrics.Store   -- ^ Metric store
-     -> ElasticOptions   -- ^ Options
+     -> ESOptions   -- ^ Options
      -> IO ()
 loop store opts = forever $ do
     start <- time
@@ -145,14 +149,14 @@ time = (round . (* 1000000.0) . toDouble) `fmap` getPOSIXTime
 
 --------------------------------------------------------------------------------
 -- | Construct the correct URL to send metrics too from '_host' and '_port'
-elasticURL :: ElasticOptions -> String
+elasticURL :: ESOptions -> String
 elasticURL eo = "http://" ++ (eo ^. host.unpacked) ++ ":" ++ show (eo ^. port) ++ "/_bulk"
 
 -- | Construct the index to send to
 --
--- if '_indexByDate' if @True@ this will be '_indexBase'-YYYY.MM.DD otherwise it
+-- if '_indexByDate' is @True@ this will be '_indexBase'-YYYY.MM.DD otherwise it
 -- will just be '_indexBase'
-mkIndex :: ElasticOptions -> IO CreateBulk
+mkIndex :: ESOptions -> IO CreateBulk
 mkIndex eo =
   CreateBulk <$> if eo ^. indexByDate
     then appendDate (eo ^. indexBase)
@@ -164,7 +168,7 @@ mkIndex eo =
 
 --------------------------------------------------------------------------------
 -- | Generate a 'BeatEvent' for each metric in the 'Metrics.Store'
-sampleBeatEvents :: Metrics.Store -> ElasticOptions -> IO [BeatEvent]
+sampleBeatEvents :: Metrics.Store -> ESOptions -> IO [BeatEvent]
 sampleBeatEvents store eo = do
   now <- getPOSIXTime
   sample <- Metrics.sampleAll store
@@ -176,8 +180,8 @@ sampleBeatEvents store eo = do
   return $ M.foldlWithKey' mkBeatEvt [] sample
 
 --------------------------------------------------------------------------------
--- | Create a 'BulkRequest' and send it elastic
-flushSample :: Metrics.Store -> ElasticOptions -> IO ()
+-- | Create a 'BulkRequest' and send it elasticsearch
+flushSample :: Metrics.Store -> ESOptions -> IO ()
 flushSample store eo = do
   createBulk <- mkIndex eo
   bulkEvts <- sampleBeatEvents store eo
