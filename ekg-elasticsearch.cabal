@@ -37,4 +37,4 @@ library
 
 source-repository head
   type:     git
-  location: https://github.com/cdodev/ekg-elastic.git
+  location: https://github.com/cdodev/ekg-elasticsearch.git
