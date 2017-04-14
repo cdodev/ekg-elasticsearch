@@ -1,8 +1,10 @@
-# ekg-elastic: elasticsearch backend for ekg
+# ekg-elasticsearch: elasticsearch backend for ekg
 
 This library lets you send metrics gathered by the ekg family of packages (e.g.
-ekg-core and ekg) to [elasticsearch](https://www.elasticsearch.co). The metrics sent are in
-the same format as [beats](https://www.elasticsearch.co/products/beats) metrics.
+[ekg-core](https://hackage.haskell.org/package/ekg-core) and
+[ekg](https://hackage.haskell.org/package/ekg)) to
+[elasticsearch](https://www.elastic.co/products/elasticsearch). The metrics sent
+are in the same format as [beats](https://www.elastic.co/products/beats) metrics.
 
 # Getting started
 
@@ -35,11 +37,11 @@ metrics to elasticsearch using a bulk request.
 # Get involved!
 
 Please report bugs via the
-[GitHub issue tracker](https://github.com/cdodev/ekg-elastic/issues).
+[GitHub issue tracker](https://github.com/cdodev/ekg-elasticsearch/issues).
 
-Master [git repository](https://github.com/cdodev/ekg-elastic):
+Master [git repository](https://github.com/cdodev/ekg-elasticsearch):
 
-    git clone https://github.com/cdodev/ekg-elastic.git
+    git clone https://github.com/cdodev/ekg-elasticsearch.git
 
 # Authors
 
