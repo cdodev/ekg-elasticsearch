@@ -1,2 +1,2 @@
 { haskell ? import <haskell> {} }:
-haskell.ekg-elastic
+haskell.ekg-elasticsearch

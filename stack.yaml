@@ -15,7 +15,7 @@ resolver: lts-8.4
 # Local packages, usually specified by relative directory name
 packages:
 - '.'
-- examples\
+- ekg-elasticsearch-examples
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
 extra-deps:
 - text-1.2.2.1
@@ -27,6 +27,9 @@ flags: {}
 # Extra package databases containing global packages
 extra-package-dbs: []
 
+nix:
+  enable: true
+  packages: [zlib]
 # Control whether we use the GHC we find on the path
 # system-ghc: true
 
