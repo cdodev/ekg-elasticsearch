@@ -1,30 +1,7 @@
-## 0.2.1.0 (2016-08-11)
+## 0.3.1.1 (2017-07-13)
+ 
+ * Error handling. Thanks to Kris Jenkins.
 
- * Send distributions as gauges and counters.
- * Update examples.
-
-## 0.2.0.4 (2016-05-28)
-
- * GHC 8.0 support.
-
-## 0.2.0.3 (2015-06-06)
-
- * Support GHC 7.10.
-
-## 0.2.0.2 (2015-04-09)
-
- * Add support for network-2.6.
-
-## 0.2.0.1 (2014-09-30)
-
- * Add support for text-1.2.
-
-## 0.2.0.0 (2014-05-27)
-
- * Add configurable metric name prefix and suffix.
- * Add support for GHC 7.4.
-
-## 0.1.0.0 (2014-05-01)
+## 0.2.0.0 (2017-04-13)
 
  * Initial release.
-
