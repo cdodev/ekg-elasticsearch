@@ -26,6 +26,7 @@ module System.Remote.Monitoring.ElasticSearch
     ) where
 
 import           Control.Concurrent    (ThreadId, forkIO, threadDelay)
+import           Control.Exception     (catch)
 import           Control.Lens
 import           Control.Monad         (forever, void)
 import qualified Data.HashMap.Strict   as M
@@ -38,6 +39,7 @@ import           Data.Time.Clock       (getCurrentTime)
 import           Data.Time.Clock.POSIX (getPOSIXTime)
 import           Data.Time.Format      (defaultTimeLocale, formatTime)
 import           Network.HostName      (getHostName)
+import           Network.HTTP.Client   (HttpException)
 import           Network.Wreq          as Wreq
 import qualified System.Metrics        as Metrics
 
@@ -65,6 +67,9 @@ data ESOptions = ESOptions
 
       -- | Server port
     , _port          :: !Int
+
+      -- | Error handler
+    , _onError       :: !(HttpException -> IO ())
 
       -- | The elasticsearch index to insert into
     , _indexBase     :: !Text
@@ -101,6 +106,8 @@ makeClassy ''ESOptions
 --
 -- * @port@ = @8125@
 --
+-- * @onException@ = @print@
+--
 -- * @indexBase@ = @metricbeats@
 --
 -- * @indexByDate@ = @True@
@@ -114,6 +121,7 @@ defaultESOptions :: ESOptions
 defaultESOptions = ESOptions
     { _host          = "127.0.0.1"
     , _port          = 9200
+    , _onError       = print
     , _indexBase     = "metricbeat"
     , _indexByDate   = True
     , _beatName      = "ekg"
@@ -185,4 +193,5 @@ flushSample :: Metrics.Store -> ESOptions -> IO ()
 flushSample store eo = do
   createBulk <- mkIndex eo
   bulkEvts <- sampleBeatEvents store eo
-  void $ Wreq.post (elasticURL eo) $ BulkRequest $ (createBulk,) <$> bulkEvts
+  (void $ Wreq.post (elasticURL eo) $ BulkRequest $ (createBulk, ) <$> bulkEvts) `catch`
+    (_onError eo)
