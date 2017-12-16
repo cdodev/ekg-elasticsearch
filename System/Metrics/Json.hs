@@ -15,6 +15,7 @@ module System.Metrics.Json
       -- ** Conversion functions
     , sampleToJson
     , valueToJson
+    , bulkRequestBody
 
       -- ** Generated Lenses
     , beat, timestamp, beatTags, ekg, rtt
@@ -37,8 +38,6 @@ import qualified Data.Text                   as T
 import           Data.Time.Clock.POSIX       (POSIXTime)
 import           GHC.Generics                (Generic)
 
-import           Network.HTTP.Client         (RequestBody (..), requestBody)
-import           Network.Wreq.Types
 import qualified System.Metrics              as Metrics
 import qualified System.Metrics.Distribution as Distribution
 
@@ -125,11 +124,11 @@ instance A.ToJSON BeatEvent where
 -- | Make a bulk submission to elasticsearch
 newtype BulkRequest = BulkRequest [(CreateBulk, BeatEvent)]
 
-instance Postable BulkRequest where
-  postPayload (BulkRequest docs) req = return $ req { requestBody = RequestBodyLBS body}
-    where
-      body = (<> "\n") . LBS.intercalate "\n" . concatMap encodeBoth $ docs
-      encodeBoth (cb, be) = [A.encode cb, A.encode be]
+bulkRequestBody :: BulkRequest -> LBS.ByteString
+bulkRequestBody (BulkRequest docs) =
+  (<> "\n") . LBS.intercalate "\n" . concatMap encodeBoth $ docs
+  where
+    encodeBoth (cb, be) = [A.encode cb, A.encode be]
 
 --------------------------------------------------------------------------------
 -- | Generate the nested json for a 'Mertics.Sample'
