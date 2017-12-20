@@ -11,25 +11,29 @@ are in the same format as [beats](https://www.elastic.co/products/beats) metrics
 Exporting metrics to elasticsearch is simple. Either create an empty metric
 store and register some metrics
 
-    import System.Metrics
-    import System.Remote.Monitoring.ElasticSearch
+```haskell
+import System.Metrics
+import System.Remote.Monitoring.ElasticSearch
 
-    main = do
-        store <- newStore
-        registerGcMetrics store
-        forkElasticSearch defaultESOptions store
-        ...
+main = do
+    store <- newStore
+    registerGcMetrics store
+    forkElasticSearch defaultESOptions store
+    ...
+```
 
 or use the default metrics and metric store provided by the ekg
 package
 
-    import System.Remote.Monitoring
-    import System.Remote.Monitoring.ElasticSearch
+```haskell
+import System.Remote.Monitoring
+import System.Remote.Monitoring.ElasticSearch
 
-    main = do
-        handle <- forkServer "localhost" 8000
-        forkElasticSearch defaultESOptions (serverMetricStore handle)
-        ...
+main = do
+    handle <- forkServer "localhost" 8000
+    forkElasticSearch defaultESOptions (serverMetricStore handle)
+    ...
+```
 
 `forkElasticSearch` starts a new thread the will periodically send your
 metrics to elasticsearch using a bulk request.
