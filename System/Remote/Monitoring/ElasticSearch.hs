@@ -29,7 +29,7 @@ module System.Remote.Monitoring.ElasticSearch
 import           Control.Concurrent    (ThreadId, forkIO, threadDelay)
 import           Control.Exception     (catch)
 import           Control.Lens
-import           Control.Monad         (forever, void)
+import           Control.Monad         (forever, void, when)
 import           Data.Default.Class    (def)
 import qualified Data.HashMap.Strict   as M
 import           Data.Int              (Int64)
@@ -42,7 +42,7 @@ import           Data.Time.Clock.POSIX (getPOSIXTime)
 import           Data.Time.Format      (defaultTimeLocale, formatTime)
 import           Network.HostName      (getHostName)
 import           Network.HTTP.Req      (HttpException, POST (..),
-                                        ReqBodyLbs (..), Scheme (Http), runReq)
+                                        ReqBodyLbs (..), Scheme (Http), (/:), runReq)
 import qualified Network.HTTP.Req      as Req
 import qualified System.Metrics        as Metrics
 
@@ -161,7 +161,10 @@ time = (round . (* 1000000.0) . toDouble) `fmap` getPOSIXTime
 --------------------------------------------------------------------------------
 -- | Construct the correct URL to send metrics too from '_host' and '_port'
 elasticURL :: ESOptions -> Req.Url 'Http
-elasticURL eo = Req.http . T.pack $ (eo ^. host.unpacked) <> ":" ++ show (eo ^. port) <> "/_bulk"
+elasticURL eo =
+  let url = Req.http . T.pack $ (eo ^. host.unpacked)
+  in
+    url /: "_bulk"
 
 -- | Construct the index to send to
 --
@@ -196,10 +199,12 @@ flushSample :: Metrics.Store -> ESOptions -> IO ()
 flushSample store eo = do
   createBulk <- mkIndex eo
   bulkEvts <- sampleBeatEvents store eo
-  let body = ReqBodyLbs . bulkRequestBody . BulkRequest $ (createBulk, ) <$> bulkEvts
-  (void . runReq def $ Req.req POST
-    (elasticURL eo)
-    body
-    Req.ignoreResponse
-    mempty)
+  let body =  bulkRequestBody . BulkRequest $ (createBulk, ) <$> bulkEvts
+
+  when (body /= "\n") -- no metrics, don't post
+    (void . runReq def $ Req.req POST
+     (elasticURL eo)
+     (ReqBodyLbs body)
+     Req.ignoreResponse
+     (Req.port (eo ^. port) <> Req.header "Content-Type" "application/json"))
     `catch` _onError eo
