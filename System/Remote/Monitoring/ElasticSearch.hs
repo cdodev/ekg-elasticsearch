@@ -30,7 +30,6 @@ import           Control.Concurrent    (ThreadId, forkIO, threadDelay)
 import           Control.Exception     (catch)
 import           Control.Lens
 import           Control.Monad         (forever, void)
-import           Data.Default.Class    (def)
 import qualified Data.HashMap.Strict   as M
 import           Data.Int              (Int64)
 import           Data.Monoid           ((<>))
@@ -197,7 +196,7 @@ flushSample store eo = do
   createBulk <- mkIndex eo
   bulkEvts <- sampleBeatEvents store eo
   let body = ReqBodyLbs . bulkRequestBody . BulkRequest $ (createBulk, ) <$> bulkEvts
-  (void . runReq def $ Req.req POST
+  (void . runReq Req.defaultHttpConfig $ Req.req POST
     (elasticURL eo)
     body
     Req.ignoreResponse
