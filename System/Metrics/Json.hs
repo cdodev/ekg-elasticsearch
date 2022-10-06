@@ -29,6 +29,8 @@ import           Control.Lens                hiding ((.=))
 import           Data.Aeson                  ((.=))
 import qualified Data.Aeson                  as A
 import qualified Data.Aeson.Types            as A
+import           Data.Aeson.Key              as AK
+import           Data.Aeson.KeyMap           as KM
 import qualified Data.ByteString.Lazy        as LBS
 import qualified Data.HashMap.Strict         as M
 import           Data.Int                    (Int64)
@@ -159,11 +161,12 @@ sampleToJson metrics =
     build m key = go m (T.splitOn "." key)
 
     go :: A.Value -> [T.Text] -> Metrics.Value -> A.Value
-    go (A.Object m) [str] val      = A.Object $ M.insert str metric m
+    go (A.Object m) [str] val      = A.Object $ KM.insert (AK.fromText str) metric m
       where metric = valueToJson val
-    go (A.Object m) (str:rest) val = case M.lookup str m of
-        Nothing -> A.Object $ M.insert str (go A.emptyObject rest val) m
-        Just m' -> A.Object $ M.insert str (go m' rest val) m
+    go (A.Object m) (str:rest) val = let strKey = AK.fromText str in
+      case KM.lookup strKey m of
+        Nothing -> A.Object $ KM.insert strKey (go A.emptyObject rest val) m
+        Just m' -> A.Object $ KM.insert strKey (go m' rest val) m
     go v _ _                        = typeMismatch "Object" v
 
 typeMismatch :: String   -- ^ The expected type
@@ -195,7 +198,7 @@ valueToJson (Metrics.Distribution l) = distrubtionToJson l
 -- value.
 scalarToJson :: A.ToJSON a => a -> MetricType -> A.Value
 scalarToJson val ty = A.object
-    [metricType ty .= val]
+    [AK.fromText (metricType ty) .= val]
 {-# SPECIALIZE scalarToJson :: Int64 -> MetricType -> A.Value #-}
 {-# SPECIALIZE scalarToJson :: T.Text -> MetricType -> A.Value #-}
 

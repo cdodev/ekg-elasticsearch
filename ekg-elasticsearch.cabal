@@ -23,7 +23,7 @@ library
                , bytestring < 1.0
                , data-default-class
                , ekg-core >= 0.1 && < 1.0
-               , aeson >= 1.0
+               , aeson >= 2.0
                , hostname >= 1.0
                , http-client >= 0.5
                , lens >= 4.15.1
